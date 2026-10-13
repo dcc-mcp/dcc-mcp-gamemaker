@@ -1,0 +1,76 @@
+tools:
+  - name: gamemaker_resource_create
+    description: >-
+      Create a GameMaker resource of the given type and read the project back to
+      confirm it exists.
+    source_file: scripts/resource_create.py
+    input_schema:
+      type: object
+      required: [resource_type]
+      properties:
+        resource_type:
+          type: string
+          enum: [animcurve, audiogroup, font, includedfile, notes, object, particlesystem, path, room, script, shader, shape, sound, sprite, texturegroup, tileset, timeline]
+        name: {type: string, minLength: 1, maxLength: 128}
+        parent: {type: string, minLength: 1, maxLength: 128}
+        folder: {type: string, minLength: 1}
+        project: {type: string, minLength: 1}
+      additionalProperties: false
+
+  - name: gamemaker_resource_delete
+    description: >-
+      Delete a GameMaker resource by name and read the project back to confirm it
+      is gone.
+    source_file: scripts/resource_delete.py
+    input_schema:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 128}
+        resource_type:
+          type: string
+          enum: [animcurve, audiogroup, font, includedfile, notes, object, particlesystem, path, room, script, shader, shape, sound, sprite, texturegroup, tileset, timeline]
+        parent: {type: string, minLength: 1, maxLength: 128}
+        project: {type: string, minLength: 1}
+      additionalProperties: false
+
+  - name: gamemaker_resource_set
+    description: >-
+      Set a resource property by expression and read it back to confirm the
+      write. Read the resource first to confirm the field name.
+    source_file: scripts/resource_set.py
+    input_schema:
+      type: object
+      required: [expression, value]
+      properties:
+        expression: {type: string, minLength: 1}
+        value: {type: string}
+        project: {type: string, minLength: 1}
+      additionalProperties: false
+
+  - name: gamemaker_sprite_add_frame
+    description: >-
+      Add a PNG frame to an existing sprite and read the frame list back. Use to
+      import art produced in another DCC.
+    source_file: scripts/sprite_add_frame.py
+    input_schema:
+      type: object
+      required: [sprite, frame_path]
+      properties:
+        sprite: {type: string, minLength: 1, maxLength: 128}
+        frame_path: {type: string, minLength: 1}
+        position: {type: string, minLength: 1}
+        project: {type: string, minLength: 1}
+      additionalProperties: false
+
+  - name: gamemaker_sprite_delete_frame
+    description: Delete one frame of a sprite by index and read the frame list back.
+    source_file: scripts/sprite_delete_frame.py
+    input_schema:
+      type: object
+      required: [sprite, index]
+      properties:
+        sprite: {type: string, minLength: 1, maxLength: 128}
+        index: {type: integer, minimum: 0}
+        project: {type: string, minLength: 1}
+      additionalProperties: false

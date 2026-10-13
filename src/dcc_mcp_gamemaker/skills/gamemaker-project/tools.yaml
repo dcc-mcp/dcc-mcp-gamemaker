@@ -1,0 +1,44 @@
+tools:
+  - name: gamemaker_status
+    description: Report the GameMaker project currently resolved by the adapter.
+    source_file: scripts/status.py
+    input_schema:
+      type: object
+      properties:
+        project: {type: string, minLength: 1}
+      additionalProperties: false
+
+  - name: gamemaker_resource_types
+    description: List the resource types the GameMaker project tool understands.
+    source_file: scripts/resource_types.py
+    input_schema:
+      type: object
+      properties:
+        project: {type: string, minLength: 1}
+      additionalProperties: false
+
+  - name: gamemaker_resource_list
+    description: List project resources, optionally filtered to one resource type.
+    source_file: scripts/resource_list.py
+    input_schema:
+      type: object
+      properties:
+        resource_type:
+          type: string
+          enum: [animcurve, audiogroup, font, includedfile, notes, object, particlesystem, path, room, script, shader, shape, sound, sprite, texturegroup, tileset, timeline]
+        project: {type: string, minLength: 1}
+      additionalProperties: false
+
+  - name: gamemaker_resource_info
+    description: >-
+      Show the members of a resource expression. Any resource name is a valid
+      root, and members can be chained: spr_player, spr_player.frames,
+      spr_player.frames[0].
+    source_file: scripts/resource_info.py
+    input_schema:
+      type: object
+      required: [expression]
+      properties:
+        expression: {type: string, minLength: 1}
+        project: {type: string, minLength: 1}
+      additionalProperties: false
