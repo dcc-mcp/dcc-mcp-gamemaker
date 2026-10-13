@@ -81,6 +81,9 @@ The adapter resolves a project in this order:
 2. `DCC_MCP_GAMEMAKER_PROJECT`;
 3. the nearest `.yyp` in the working directory or any parent.
 
+Step 3 walks upward, so launching from a project subdirectory such as
+`sprites/` or `objects/` still resolves the project.
+
 ```bash
 export DCC_MCP_GAMEMAKER_PROJECT=/path/to/Game/Game.yyp
 ```

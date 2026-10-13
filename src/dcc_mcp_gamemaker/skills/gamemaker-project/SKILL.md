@@ -49,6 +49,7 @@ The adapter resolves a project in this order:
 
 1. the `project` argument, when a tool is called with one;
 2. `DCC_MCP_GAMEMAKER_PROJECT`, when the server is configured with it;
-3. the nearest `.yyp` in the working directory or any parent.
+3. the nearest `.yyp` in the working directory or any parent — so launching
+   from a project subdirectory such as `sprites/` still resolves the project.
 
 Run `dcc-mcp-gamemaker doctor --json` to see which one is in effect and why.

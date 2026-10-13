@@ -172,15 +172,31 @@ class GamemakerBridge:
         if self.project is not None:
             candidate = Path(self.project)
             if candidate.is_dir():
-                found = self._yyp_in(candidate)
-                if found is not None:
-                    return found
-                return None
+                return self._yyp_upward(candidate)
             if candidate.is_file():
                 return candidate
             return None
-        start = self.cwd or Path.cwd()
-        return self._yyp_in(start)
+        start = (self.cwd or Path.cwd()).resolve()
+        return self._yyp_upward(start)
+
+    @classmethod
+    def _yyp_upward(cls, directory: Path) -> Optional[Path]:
+        """Return the nearest ``.yyp`` in *directory* or any of its parents.
+
+        Walking up is what makes the tools usable from a subdirectory of a
+        project — ``sprites/`` or ``objects/`` — which is the normal place to be
+        when working on one asset. The upstream tool only looks at ``cwd``, so
+        this is a deliberate superset of its behaviour, not a copy of it.
+        """
+        current = directory.resolve()
+        while True:
+            found = cls._yyp_in(current)
+            if found is not None:
+                return found
+            parent = current.parent
+            if parent == current:
+                return None
+            current = parent
 
     @staticmethod
     def _yyp_in(directory: Path) -> Optional[Path]:
@@ -188,6 +204,33 @@ class GamemakerBridge:
         if matches:
             return matches[0]
         return None
+
+    @staticmethod
+    def quote_value(key: str, value: str) -> str:
+        """Build one ``key=value`` token using the resource tool's own syntax.
+
+        The tool splits a command on spaces and treats a double quote as a
+        grouping toggle, so an unquoted value containing a space is silently
+        torn into several tokens: ``value=Hello World`` arrives as
+        ``value=Hello`` plus a stray ``World``. That is not a corner case here —
+        Windows paths routinely contain spaces (``C:\\Users\\First Last\\...``,
+        ``Program Files``), and the sprite import path is exactly the one that
+        carries a filesystem path.
+
+        The whole ``key=value`` token is wrapped, not just the value, because
+        the tool parses the ``=`` itself.
+
+        The tool offers no way to escape a double quote, so a value containing
+        one cannot be expressed at all. Refuse it loudly rather than emitting a
+        command that would be parsed as something else.
+        """
+        text = str(value)
+        if '"' in text:
+            raise BridgeError(
+                "%s cannot contain a double quote: the resource tool has no "
+                "escape syntax for one, so the value cannot be represented" % key
+            )
+        return '%s="%s"' % (key, text)
 
     # -- invocation ----------------------------------------------------
 
@@ -304,13 +347,16 @@ class GamemakerBridge:
         """Show the members of a resource expression such as ``spr_hero``."""
         if not expression.strip():
             raise BridgeError("A resource expression is required")
-        return self.eval("resource info expr=%s" % expression.strip())
+        return self.eval("resource info %s" % self.quote_value("expr", expression.strip()))
 
     def resource_set(self, expression: str, value: str) -> str:
         """Set a resource property, then read it back to confirm the write."""
         if not expression.strip():
             raise BridgeError("A resource expression is required")
-        self.eval("resource set expr=%s value=%s" % (expression.strip(), value))
+        self.eval(
+            "resource set %s %s"
+            % (self.quote_value("expr", expression.strip()), self.quote_value("value", value))
+        )
         return self.resource_info(expression)
 
     def resource_create(
@@ -328,11 +374,11 @@ class GamemakerBridge:
             )
         parts = ["resource create type=%s" % resource_type]
         if name:
-            parts.append("name=%s" % name)
+            parts.append(self.quote_value("name", name))
         if parent:
-            parts.append("parent=%s" % parent)
+            parts.append(self.quote_value("parent", parent))
         if folder:
-            parts.append("folder=%s" % folder)
+            parts.append(self.quote_value("folder", folder))
         self.eval(" ".join(parts))
         return self.resource_list(resource_type)
 
@@ -345,11 +391,11 @@ class GamemakerBridge:
         """Delete a resource and read the project back to confirm it is gone."""
         if not name.strip():
             raise BridgeError("A resource name is required")
-        parts = ["resource delete name=%s" % name.strip()]
+        parts = ["resource delete", self.quote_value("name", name.strip())]
         if resource_type:
             parts.append("type=%s" % resource_type)
         if parent:
-            parts.append("parent=%s" % parent)
+            parts.append(self.quote_value("parent", parent))
         self.eval(" ".join(parts))
         return self.resource_list(resource_type)
 
@@ -365,9 +411,13 @@ class GamemakerBridge:
         path = Path(frame_path)
         if not path.is_file():
             raise BridgeError("Frame image not found: %s" % path)
-        parts = ["sprite addframe name=%s" % sprite.strip(), "path=%s" % path]
+        parts = [
+            "sprite addframe",
+            self.quote_value("name", sprite.strip()),
+            self.quote_value("path", str(path)),
+        ]
         if position:
-            parts.append("frame=%s" % position)
+            parts.append(self.quote_value("frame", position))
         self.eval(" ".join(parts))
         return self.resource_info("%s.frames" % sprite.strip())
 
@@ -375,5 +425,8 @@ class GamemakerBridge:
         """Delete one frame by index and read the frame list back."""
         if not sprite.strip():
             raise BridgeError("A sprite name is required")
-        self.eval("sprite deleteframe name=%s index=%d" % (sprite.strip(), int(index)))
+        self.eval(
+            "sprite deleteframe %s index=%d"
+            % (self.quote_value("name", sprite.strip()), int(index))
+        )
         return self.resource_info("%s.frames" % sprite.strip())

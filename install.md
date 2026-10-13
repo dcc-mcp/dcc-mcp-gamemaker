@@ -82,7 +82,8 @@ An exit code of `0` with `"status": "ok"` means the adapter is directly usable.
 | `DCC_MCP_GAMEMAKER_TIMEOUT` | Per-call timeout in seconds (default `300`, maximum `3600`) |
 
 If `DCC_MCP_GAMEMAKER_PROJECT` is unset, the adapter looks for the nearest
-`.yyp` in the working directory or any parent.
+`.yyp` in the working directory or any parent, so running from a project
+subdirectory such as `sprites/` still resolves the project.
 
 ## Verify
 

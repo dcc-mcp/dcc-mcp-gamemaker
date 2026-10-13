@@ -153,6 +153,30 @@ def doctor_report(
     steps: list[dict[str, Any]] = []
 
     # -- configuration -------------------------------------------------
+    # A timeout that is only recorded is a lie to the orchestrator reading this
+    # report, so validate it before anything else and then actually apply it to
+    # the runtime probe below.
+    if timeout <= 0:
+        reason = "Probe timeout must be greater than 0 seconds, got %s" % timeout
+        checks["configuration"] = {"success": False, "reason": reason, "timeout": timeout}
+        return _fail(
+            verb,
+            core_version,
+            checks,
+            steps,
+            EXIT_PREFLIGHT,
+            "validate-configuration",
+            "configuration",
+            reason,
+            [
+                _command_step(
+                    "review-configuration",
+                    "Pass a positive --timeout in seconds",
+                    ["dcc-mcp-gamemaker", verb, "--json", "--timeout", "30"],
+                    reason,
+                )
+            ],
+        )
     try:
         bridge = GamemakerBridge.from_env(str(project) if project is not None else None)
     except (OSError, ValueError) as exc:
@@ -181,6 +205,7 @@ def doctor_report(
         "success": True,
         "project": str(bridge.project) if bridge.project is not None else None,
         "config": bridge.config,
+        # The value the runtime probe below is actually run with.
         "timeout": timeout,
     }
 
@@ -325,7 +350,7 @@ def doctor_report(
 
     # -- runtime round-trip --------------------------------------------
     try:
-        status = bridge.status()
+        status = bridge.eval("status", timeout=timeout)
     except (BridgeError, OSError, ValueError) as exc:
         reason = "GameMaker runtime verification failed: %s" % exc
         checks["runtime"] = {"success": False, "reason": str(exc)}

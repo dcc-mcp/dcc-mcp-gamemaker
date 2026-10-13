@@ -16,6 +16,8 @@ import sys
 
 import pytest
 
+from dcc_mcp_gamemaker.bridge import GamemakerBridge
+
 
 def _published_schema_const():
     """The ``schema_version`` value the published Install SOP schema pins."""
@@ -108,8 +110,8 @@ def test_doctor_report_satisfies_the_published_schema(tmp_path, monkeypatch, cap
         lambda self: ["gm-cli"],
     )
     monkeypatch.setattr(
-        "dcc_mcp_gamemaker.bridge.GamemakerBridge.status",
-        lambda self: "Project 'Fixture' loaded",
+        "dcc_mcp_gamemaker.bridge.GamemakerBridge.eval",
+        lambda self, command, timeout=None: "Project 'Fixture' loaded",
     )
 
     assert cli.main(["doctor", "--json", "--project", str(project)]) == 0
@@ -146,3 +148,41 @@ def test_failed_report_still_satisfies_the_published_schema(monkeypatch, capsys)
 
     assert cli.main(["verify", "--json"]) == 10
     validate_install_sop_report(json.loads(capsys.readouterr().out))
+
+
+# -- timeout actually governs the probe (P2b) ---------------------------------
+
+
+def test_timeout_is_applied_to_the_runtime_probe(tmp_path, monkeypatch, capsys):
+    """``--timeout`` must reach the probe, not only land in the report."""
+    seen = {}
+
+    def fake_eval(self, command, *, timeout=None):
+        seen["timeout"] = timeout
+        return "Project 'Fixture' loaded"
+
+    project = tmp_path / "Fixture.yyp"
+    project.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(GamemakerBridge, "node_version", lambda self: "24.11.1")
+    monkeypatch.setattr(GamemakerBridge, "resolve_command", lambda self: ["gm-cli"])
+    monkeypatch.setattr(GamemakerBridge, "eval", fake_eval)
+
+    from dcc_mcp_gamemaker import cli
+
+    assert cli.main(["doctor", "--json", "--project", str(project), "--timeout", "7"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert seen["timeout"] == 7.0
+    assert report["checks"]["configuration"]["timeout"] == 7.0
+
+
+def test_a_non_positive_timeout_is_rejected(monkeypatch, capsys):
+    """A switch that silently does nothing is worse than one that errors."""
+    from dcc_mcp_gamemaker import cli
+
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr(GamemakerBridge, "node_version", lambda self: None)
+
+    assert cli.main(["doctor", "--json", "--timeout", "0"]) == 10
+    report = json.loads(capsys.readouterr().out)
+    assert report["verify"]["failure_stage"] == "configuration"
+    assert "greater than 0" in report["verify"]["failure_reason"]
