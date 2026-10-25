@@ -10,6 +10,16 @@ format is private and shifts between GameMaker releases, so this adapter never
 parses it — it sends a command to the official resource tool and reads back
 what that tool prints.
 
+## Status
+
+The adapter is implemented in source. Default CI runs host-free unit tests, lint
+and package checks. As of October 25, 2026, this repository lists no GitHub
+release.
+
+The real-project test is opt-in and requires `gm-cli` plus an explicitly configured
+GameMaker project. No native acceptance record is committed in this repository,
+so a passing default CI run does not establish a real-project round trip.
+
 ## Part of the DCC-MCP host matrix
 
 This adapter joins the same contract as the Godot, Blender, Houdini, and Unreal
